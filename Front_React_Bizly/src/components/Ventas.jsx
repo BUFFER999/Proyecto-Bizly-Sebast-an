@@ -155,25 +155,35 @@ function Ventas() {
             {cargando ? (
               <p>Cargando productos...</p>
             ) : (
-              productosFiltrados.map(producto => (
-                <div 
-                  key={producto.id} 
-                  className="product-card"
-                  onClick={() => agregarAlCarrito(producto)}
-                  style={{ cursor: 'pointer', border: '1px solid #e2e8f0' }}
-                >
-                  <div className="product-info">
-                    <h4>{producto.nombre}</h4>
-                    <span className="sku">Código: {producto.codigo}</span>
-                    <div className="product-price-row" style={{ marginTop: '10px' }}>
-                      <span className="price">$ {producto.precio_venta}</span>
-                      <span className={`stock ${producto.stock_actual <= producto.stock_minimo ? 'low-stock' : ''}`}>
-                        Stock: {producto.stock_actual}
-                      </span>
+              productosFiltrados.map(producto => {
+                // Determinamos estilos de alerta visual según el stock
+                let estiloStockCard = { cursor: 'pointer', border: '1px solid #e2e8f0' };
+                if (producto.stock_actual === 0) {
+                  estiloStockCard = { cursor: 'pointer', border: '2px solid #ef4444', backgroundColor: '#fef2f2' };
+                } else if (producto.stock_actual <= producto.stock_minimo) {
+                  estiloStockCard = { cursor: 'pointer', border: '2px solid #f59e0b', backgroundColor: '#fffbeb' };
+                }
+
+                return (
+                  <div 
+                    key={producto.id} 
+                    className="product-card"
+                    onClick={() => agregarAlCarrito(producto)}
+                    style={estiloStockCard}
+                  >
+                    <div className="product-info">
+                      <h4>{producto.nombre}</h4>
+                      <span className="sku">Código: {producto.codigo}</span>
+                      <div className="product-price-row" style={{ marginTop: '10px' }}>
+                        <span className="price">$ {producto.precio_venta}</span>
+                        <span className={`stock ${producto.stock_actual <= producto.stock_minimo ? 'low-stock' : ''}`} style={{ fontWeight: 'bold' }}>
+                          Stock: {producto.stock_actual} {producto.stock_actual === 0 ? '(Agotado)' : ''}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -189,7 +199,7 @@ function Ventas() {
             <div>
               <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
                 {carrito.map(item => (
-                  <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #f5f5f5', pb: '8px' }}>
+                  <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #f5f5f5', paddingBottom: '8px' }}>
                     <div>
                       <strong style={{ display: 'block', fontSize: '0.9em' }}>{item.nombre}</strong>
                       <span style={{ fontSize: '0.8em', color: '#666' }}>$ {item.precio_venta} c/u</span>

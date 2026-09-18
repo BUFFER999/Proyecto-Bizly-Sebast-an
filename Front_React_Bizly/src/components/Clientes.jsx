@@ -1,21 +1,46 @@
 // src/components/Clientes.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import './Dashboard.css'; 
-import './Ventas.css'; // Reutilizamos el buscador y botones
-import './Inventario.css'; // Reutilizamos la cuadrícula base
-import './Clientes.css'; // Estilos específicos para las tarjetas de clientes
+import './Ventas.css'; 
+import './Inventario.css'; 
+import './Clientes.css'; 
 
 function Clientes() {
-  // Estado para controlar la ventana flotante de Nuevo/Editar Cliente[cite: 1]
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [clientes, setClientes] = useState([]);
+  const [busqueda, setBusqueda] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  // Función para la alerta de desactivación[cite: 1]
+  // Cargar clientes desde el Backend al iniciar el componente
+  useEffect(() => {
+    fetch('http://localhost:5000/api/clientes') // Ajusta el puerto si tu backend corre en otro (ej. 4000 o 3000)
+      .then(res => res.json())
+      .then(data => {
+        setClientes(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Error al cargar clientes:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  // Filtrar clientes según el buscador
+  const clientesFiltrados = clientes.filter(cliente => {
+    const texto = busqueda.toLowerCase();
+    return (
+      (cliente.nombre && cliente.nombre.toLowerCase().includes(texto)) ||
+      (cliente.documento && cliente.documento.toString().includes(texto)) ||
+      (cliente.telefono && cliente.telefono.toString().includes(texto)) ||
+      (cliente.email && cliente.email.toLowerCase().includes(texto))
+    );
+  });
+
   const confirmarDesactivacion = (nombreCliente) => {
     const confirmar = window.confirm(`¿Desactivar al cliente "${nombreCliente}"? Sus ventas históricas se conservarán.`);
     if (confirmar) {
       console.log(`Cliente ${nombreCliente} desactivado.`);
-      // Más adelante, aquí irá la petición fetch para actualizar la base de datos
     }
   };
 
@@ -28,7 +53,7 @@ function Clientes() {
           <div>
             <div className="breadcrumbs">Bizly / Clientes</div>
             <h1>Clientes</h1>
-            <p className="subtitle">2 registrados</p>
+            <p className="subtitle">{clientes.length} registrados</p>
           </div>
           <div className="header-actions">
             <button className="btn-primary" onClick={() => setModalAbierto(true)}>
@@ -47,96 +72,78 @@ function Clientes() {
             <input 
               type="text" 
               placeholder="Buscar por nombre, documento, teléfono o email..." 
-              className="search-input" 
+              className="search-input"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
             />
           </div>
         </div>
 
-        {/* Cuadrícula de Tarjetas de Clientes */}
+        {/* Cuadrícula de Tarjetas de Clientes Dinámica */}
         <div className="products-grid">
-          
-          {/* Tarjeta Cliente 1 */}
-          <div className="product-card client-card">
-            <div className="client-header">
-              <div className="client-avatar">CD</div>
-              <div className="client-info">
-                <h4>Cliente Demostración Dos</h4>
-                <span className="client-doc">CC 100000002</span>
-              </div>
-            </div>
-            <div className="client-body">
-              <div className="client-stats">
-                <span>🛍️ 0 compras</span>
-                <span className="client-spent">$ 0</span>
-              </div>
-              <div className="client-contact">
-                <span>📞 3000000002</span>
-                <span>✉️ cliente2@example.com</span>
-              </div>
-            </div>
-            <div className="product-actions">
-              <button className="btn-action" onClick={() => setModalAbierto(true)}>✎ Editar</button>
-              <button 
-                className="btn-action danger" 
-                onClick={() => confirmarDesactivacion("Cliente Demostración Dos")}
-              >
-                🗑 Desactivar
-              </button>
-            </div>
-          </div>
-
-          {/* Tarjeta Cliente 2 */}
-          <div className="product-card client-card">
-            <div className="client-header">
-              <div className="client-avatar">CD</div>
-              <div className="client-info">
-                <h4>Cliente Demostración Uno</h4>
-                <span className="client-doc">CC 100000001</span>
-              </div>
-            </div>
-            <div className="client-body">
-              <div className="client-stats">
-                <span>🛍️ 0 compras</span>
-                <span className="client-spent">$ 0</span>
-              </div>
-              <div className="client-contact">
-                <span>📞 3000000001</span>
-                <span>✉️ cliente1@example.com</span>
-              </div>
-            </div>
-            <div className="product-actions">
-              <button className="btn-action" onClick={() => setModalAbierto(true)}>✎ Editar</button>
-              <button 
-                className="btn-action danger" 
-                onClick={() => confirmarDesactivacion("Cliente Demostración Uno")}
-              >
-                🗑 Desactivar
-              </button>
-            </div>
-          </div>
-
+          {loading ? (
+            <p>Cargando clientes desde la base de datos...</p>
+          ) : clientesFiltrados.length === 0 ? (
+            <p>No se encontraron clientes registrados.</p>
+          ) : (
+            clientesFiltrados.map((cliente) => {
+              // Generar iniciales para el Avatar
+              const iniciales = cliente.nombre ? cliente.nombre.substring(0, 2).toUpperCase() : 'CL';
+              
+              return (
+                <div className="product-card client-card" key={cliente.id || cliente.id_cliente}>
+                  <div className="client-header">
+                    <div className="client-avatar">{iniciales}</div>
+                    <div className="client-info">
+                      <h4>{cliente.nombre} {cliente.apellido || ''}</h4>
+                      <span className="client-doc">CC {cliente.documento}</span>
+                    </div>
+                  </div>
+                  <div className="client-body">
+                    <div className="client-stats">
+                      <span>🛍️ 0 compras</span>
+                      <span className="client-spent">$ 0</span>
+                    </div>
+                    <div className="client-contact">
+                      <span>📞 {cliente.telefono || 'Sin teléfono'}</span>
+                      <span>✉️ {cliente.email || 'Sin correo'}</span>
+                    </div>
+                  </div>
+                  <div className="product-actions">
+                    <button className="btn-action" onClick={() => setModalAbierto(true)}>✎ Editar</button>
+                    <button 
+                      className="btn-action danger" 
+                      onClick={() => confirmarDesactivacion(cliente.nombre)}
+                    >
+                      🗑 Desactivar
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </main>
 
-      {/* --- VENTANA MODAL (Editar / Nuevo Cliente) --- */}
+      {/* --- VENTANA MODAL (Nuevo / Editar Cliente) --- */}
       {modalAbierto && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ width: '450px' }}>
             <div className="modal-header">
-              <h2>Editar cliente</h2>
+              <h2>Nuevo cliente</h2>
               <button className="close-btn" onClick={() => setModalAbierto(false)}>✕</button>
             </div>
             
             <form className="modal-body" onSubmit={(e) => { e.preventDefault(); setModalAbierto(false); }}>
               <div className="input-group">
                 <label>Nombre completo <span>*</span></label>
-                <input type="text" defaultValue="Cliente Demostración Dos" required />
+                <input type="text" placeholder="Ej. Carlos Pérez" required />
               </div>
               
               <div className="input-row">
                 <div className="input-group">
                   <label>Documento</label>
-                  <input type="text" defaultValue="100000002" />
+                  <input type="text" placeholder="Ej. 10203040" />
                 </div>
                 <div className="input-group">
                   <label>Tipo</label>
@@ -151,12 +158,12 @@ function Clientes() {
 
               <div className="input-row">
                 <div className="input-group">
-                  <label>Teléfono</label>
-                  <input type="text" defaultValue="3000000002" />
+                  <label>Телефонo</label>
+                  <input type="text" placeholder="Ej. 3101234567" />
                 </div>
                 <div className="input-group">
                   <label>Email</label>
-                  <input type="email" defaultValue="cliente2@example.com" />
+                  <input type="email" placeholder="correo@example.com" />
                 </div>
               </div>
 

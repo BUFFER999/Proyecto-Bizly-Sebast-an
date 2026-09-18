@@ -1,132 +1,109 @@
 // src/components/Dashboard.jsx
-import { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import './Dashboard.css';
 
 function Dashboard() {
-  const { usuario } = useContext(AuthContext);
-  
-  // Estados para guardar los datos reales
-  const [ventas, setVentas] = useState([]);
-  const [productos, setProductos] = useState([]);
-  const [cargando, setCargando] = useState(true);
-
-  // Función para traer ventas y productos al mismo tiempo
-  const cargarDatosDashboard = async () => {
-    try {
-      const [resVentas, resProductos] = await Promise.all([
-        fetch('http://localhost:5000/api/ventas'),
-        fetch('http://localhost:5000/api/productos')
-      ]);
-
-      if (resVentas.ok && resProductos.ok) {
-        const dataVentas = await resVentas.json();
-        const dataProductos = await resProductos.json();
-        
-        setVentas(dataVentas);
-        setProductos(dataProductos);
-      }
-    } catch (error) {
-      console.error("Error cargando los datos del Dashboard:", error);
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  useEffect(() => {
-    cargarDatosDashboard();
-  }, []);
-
-  // 🧮 CÁLCULOS MATEMÁTICOS PARA LAS MÉTRICAS
-  // 1. Ingresos Totales (Suma de la columna 'total' de todas las ventas)
-  const ingresosTotales = ventas.reduce((acc, venta) => acc + Number(venta.total), 0);
-  
-  // 2. Cantidad de ventas realizadas
-  const totalVentas = ventas.length;
-
-  // 3. Productos con stock bajo
-  const stockBajo = productos.filter(p => p.stock_actual <= p.stock_minimo).length;
+  const navigate = useNavigate();
 
   return (
     <div className="admin-container">
       <Sidebar />
+      
       <main className="main-content">
         <header className="top-header">
           <div>
             <div className="breadcrumbs">Bizly / Dashboard</div>
-            <h1>Bienvenido de vuelta, {usuario?.nombre} 👋</h1>
+            <h1>Bienvenido de vuelta, Samuel </h1>
             <p className="subtitle">Aquí tienes el resumen de tu negocio de hoy.</p>
           </div>
           <div className="header-user">
-            <strong>{usuario?.nombre} {usuario?.apellido}</strong>
-            <span className="user-role">{usuario?.rol || 'Administrador'}</span>
+            <strong>Samuel Torres</strong>
+            <span>Administrador</span>
           </div>
         </header>
 
-        {cargando ? (
-          <p>Cargando métricas de Bizly...</p>
-        ) : (
-          <div className="metrics-grid">
-            {/* Tarjeta 1: Ingresos Totales */}
-            <div className="metric-card">
-              <div className="metric-icon" style={{ backgroundColor: '#dcfce7', color: '#16a34a' }}>💰</div>
-              <div className="metric-info">
-                <h3>Ingresos Totales</h3>
-                <p className="metric-value">$ {ingresosTotales.toLocaleString()}</p>
-                <span className="metric-trend positive">↑ En tiempo real</span>
-              </div>
-            </div>
-
-            {/* Tarjeta 2: Ventas Realizadas */}
-            <div className="metric-card">
-              <div className="metric-icon" style={{ backgroundColor: '#e0e7ff', color: '#4f46e5' }}>🧾</div>
-              <div className="metric-info">
-                <h3>Ventas Realizadas</h3>
-                <p className="metric-value">{totalVentas}</p>
-                <span className="metric-trend">Facturas emitidas</span>
-              </div>
-            </div>
-
-            {/* Tarjeta 3: Alertas de Inventario */}
-            <div className="metric-card">
-              <div className="metric-icon" style={{ backgroundColor: '#fee2e2', color: '#dc2626' }}>⚠️</div>
-              <div className="metric-info">
-                <h3>Alertas de Stock</h3>
-                <p className="metric-value">{stockBajo}</p>
-                <span className="metric-trend negative">Productos por agotar</span>
+        {/* Tarjetas de Resumen Interactivas */}
+        <div className="dashboard-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '30px' }}>
+          
+          {/* Tarjeta 1: Ingresos Totales -> Lleva a Reportes */}
+          <div 
+            className="product-card" 
+            onClick={() => navigate('/reportes')} 
+            style={{ cursor: 'pointer', transition: 'transform 0.2s', padding: '20px' }}
+            title="Ver reportes detallados"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div style={{ background: '#eef2ff', padding: '12px', borderRadius: '12px', fontSize: '24px' }}>📊</div>
+              <div>
+                <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Ingresos Totales</p>
+                <h3 style={{ fontSize: '24px', color: '#1e293b', margin: '5px 0' }}>$ 16.600</h3>
+                <span style={{ fontSize: '12px', color: '#10b981' }}>↑ En tiempo real</span>
               </div>
             </div>
           </div>
-        )}
 
-        {/* Sección de Actividad Reciente */}
-        <section className="recent-activity" style={{ marginTop: '30px', backgroundColor: '#fff', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
-          <h3>Últimas 5 ventas</h3>
-          {ventas.length === 0 ? (
-            <p style={{ color: '#666', marginTop: '10px' }}>No hay ventas registradas aún.</p>
-          ) : (
-            <table style={{ width: '100%', marginTop: '15px', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                  <th style={{ padding: '10px' }}>Factura</th>
-                  <th style={{ padding: '10px' }}>Método de Pago</th>
-                  <th style={{ padding: '10px' }}>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Mostramos solo las últimas 5 ventas usando slice */}
-                {ventas.slice(0, 5).map(venta => (
-                  <tr key={venta.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '10px', color: '#4f46e5', fontWeight: 'bold' }}>{venta.numero_factura}</td>
-                    <td style={{ padding: '10px' }}>{venta.metodo_pago}</td>
-                    <td style={{ padding: '10px' }}>$ {Number(venta.total).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
+          {/* Tarjeta 2: Ventas Realizadas -> Lleva a Ventas */}
+          <div 
+            className="product-card" 
+            onClick={() => navigate('/ventas')} 
+            style={{ cursor: 'pointer', transition: 'transform 0.2s', padding: '20px' }}
+            title="Ver módulo de ventas"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '12px', fontSize: '24px' }}>📄</div>
+              <div>
+                <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Ventas Realizadas</p>
+                <h3 style={{ fontSize: '24px', color: '#1e293b', margin: '5px 0' }}>2</h3>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>Facturas emitidas</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tarjeta 3: Alertas de Stock -> Lleva a Inventario */}
+          <div 
+            className="product-card" 
+            onClick={() => navigate('/inventario')} 
+            style={{ cursor: 'pointer', transition: 'transform 0.2s', padding: '20px' }}
+            title="Gestionar inventario y stock"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div style={{ background: '#fef2f2', padding: '12px', borderRadius: '12px', fontSize: '24px' }}>⚠️</div>
+              <div>
+                <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Alertas de Stock</p>
+                <h3 style={{ fontSize: '24px', color: '#1e293b', margin: '5px 0' }}>3</h3>
+                <span style={{ fontSize: '12px', color: '#ef4444' }}>Productos por agotar</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Sección de Últimas Ventas */}
+        <div className="product-card" style={{ padding: '20px' }}>
+          <h3 style={{ marginBottom: '15px', color: '#1e293b' }}>Últimas 5 ventas</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '14px' }}>
+                <th style={{ padding: '10px' }}>Factura</th>
+                <th style={{ padding: '10px' }}>Método de Pago</th>
+                <th style={{ padding: '10px' }}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <td style={{ padding: '12px', color: '#624bff', fontWeight: '500', cursor: 'pointer' }} onClick={() => navigate('/ventas')}>FAC-1789610758404</td>
+                <td style={{ padding: '12px', color: '#475569' }}>efectivo</td>
+                <td style={{ padding: '12px', color: '#475569', fontWeight: '600' }}>$ 8300</td>
+              </tr>
+              <tr>
+                <td style={{ padding: '12px', color: '#624bff', fontWeight: '500', cursor: 'pointer' }} onClick={() => navigate('/ventas')}>FAC-1789529055903</td>
+                <td style={{ padding: '12px', color: '#475569' }}>efectivo</td>
+                <td style={{ padding: '12px', color: '#475569', fontWeight: '600' }}>$ 8300</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
       </main>
     </div>

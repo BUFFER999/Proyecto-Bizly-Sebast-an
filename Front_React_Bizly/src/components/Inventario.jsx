@@ -13,7 +13,12 @@ function Inventario() {
   const [productos, setProductos] = useState([]);
   const [cargando, setCargando] = useState(true);
 
-  // 👇 NUEVO: Estado para guardar lo que el usuario escribe en el formulario
+  // Estados para búsqueda y filtros interactivos
+  const [busqueda, setBusqueda] = useState('');
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('Todas');
+  const [filtroStock, setFiltroStock] = useState('todos');
+
+  // Estado para guardar lo que el usuario escribe en el formulario
   const [formulario, setFormulario] = useState({
     nombre: '',
     codigo: '',
@@ -31,7 +36,7 @@ function Inventario() {
     { id: 5, nombre: "Cuidado personal" }
   ];
 
-  // Separé la petición en una función para poder reutilizarla
+  // Petición para cargar el inventario desde el Backend
   const cargarInventario = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/productos');
@@ -50,7 +55,7 @@ function Inventario() {
     cargarInventario();
   }, []);
 
-  // 👇 NUEVO: Función para capturar lo que se escribe en los inputs
+  // Función para capturar lo que se escribe en los inputs del formulario
   const manejarCambio = (e) => {
     setFormulario({
       ...formulario,
@@ -58,9 +63,8 @@ function Inventario() {
     });
   };
 
-  // 👇 NUEVO: Función que se ejecuta al darle clic a "Guardar producto"
+  // Función que se ejecuta al darle clic a "Guardar producto"
   const guardarProducto = async () => {
-    // Mini validación para que no envíen campos vacíos
     if (!formulario.nombre || !formulario.codigo || !formulario.precio_venta || !formulario.stock_actual) {
       alert("Por favor, llena todos los campos obligatorios.");
       return;
@@ -77,9 +81,9 @@ function Inventario() {
 
       if (response.ok) {
         alert("¡Producto guardado exitosamente!");
-        setModalAbierto(false); // Cerramos el modal
-        setFormulario({ nombre: '', codigo: '', id_categoria: '', precio_venta: '', stock_actual: '' }); // Limpiamos formulario
-        cargarInventario(); // Recargamos la tabla para que aparezca el nuevo producto al instante
+        setModalAbierto(false); 
+        setFormulario({ nombre: '', codigo: '', id_categoria: '', precio_venta: '', stock_actual: '' }); 
+        cargarInventario(); 
       } else {
         alert("Error al guardar el producto");
       }
@@ -88,20 +92,39 @@ function Inventario() {
     }
   };
 
+  // --- LÓGICA DE FILTRADO INTELIGENTE ---
   const totalProductos = productos.length;
-  const stockBajo = productos.filter(p => p.stock_actual <= p.stock_minimo).length;
+  const stockBajoCount = productos.filter(p => p.stock_actual <= p.stock_minimo).length;
+
+  const productosFiltrados = productos.filter(producto => {
+    // 1. Filtro por búsqueda (nombre o SKU)
+    const textoMatch = 
+      producto.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+      producto.codigo.toLowerCase().includes(busqueda.toLowerCase());
+
+    // 2. Filtro por categoría
+    const categoriaMatch = 
+      categoriaSeleccionada === 'Todas' || producto.id_categoria.toString() === categoriaSeleccionada.toString();
+
+    // 3. Filtro por estado de stock
+    let stockMatch = true;
+    if (filtroStock === 'bajo') {
+      stockMatch = producto.stock_actual <= producto.stock_minimo;
+    }
+
+    return textoMatch && categoriaMatch && stockMatch;
+  });
 
   return (
     <div className="admin-container">
       <Sidebar />
       
-      {/* ... (Todo el main y el header se queda igualito hasta la parte del Modal) ... */}
       <main className="main-content">
         <header className="top-header">
           <div>
             <div className="breadcrumbs">Bizly / Inventario</div>
             <h1>Inventario</h1>
-            <p className="subtitle">{totalProductos} productos · {stockBajo} con stock bajo</p>
+            <p className="subtitle">{totalProductos} productos · {stockBajoCount} con stock bajo</p>
           </div>
           <div className="header-actions">
             <button className="btn-secondary">⭳ Importar CSV</button>
@@ -114,60 +137,94 @@ function Inventario() {
           </div>
         </header>
 
-        {stockBajo > 0 && (
-          <div className="alert-warning">
-            ⚠️ {stockBajo} producto(s) con stock bajo o agotado
+        {/* Alerta interactiva de stock bajo */}
+        {stockBajoCount > 0 && (
+          <div 
+            className="alert-warning" 
+            onClick={() => setFiltroStock(filtroStock === 'bajo' ? 'todos' : 'bajo')}
+            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+            title="Haz clic para alternar el filtro de stock bajo"
+          >
+            ⚠️ {stockBajoCount} producto(s) con stock bajo o agotado. <em>(Haz clic aquí para {filtroStock === 'bajo' ? 'ver todos' : 'filtrarlos'})</em>
           </div>
         )}
 
+        {/* Barra de Acciones y Filtros */}
         <div className="action-bar">
           <div className="search-container">
             <span className="search-icon">🔍</span>
-            <input type="text" placeholder="Buscar por nombre o SKU..." className="search-input" />
+            <input 
+              type="text" 
+              placeholder="Buscar por nombre o SKU..." 
+              className="search-input"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
           </div>
-          <select className="filter-select">
-            <option>Todas las categorías</option>
+
+          <select 
+            className="filter-select"
+            value={categoriaSeleccionada}
+            onChange={(e) => setCategoriaSeleccionada(e.target.value)}
+          >
+            <option value="Todas">Todas las categorías</option>
             {categoriasDB.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.nombre}</option>
             ))}
           </select>
-          <select className="filter-select">
-            <option>Todo el stock</option>
-            <option>Stock bajo</option>
+
+          <select 
+            className="filter-select"
+            value={filtroStock}
+            onChange={(e) => setFiltroStock(e.target.value)}
+          >
+            <option value="todos">Todo el stock</option>
+            <option value="bajo">Stock bajo</option>
           </select>
         </div>
 
+        {/* Cuadrícula de Productos Dinámica con alertas visuales de color */}
         <div className="products-grid">
           {cargando ? (
             <p>Cargando inventario...</p>
-          ) : productos.length === 0 ? (
-            <p>No hay productos registrados en la base de datos.</p>
+          ) : productosFiltrados.length === 0 ? (
+            <p>No se encontraron productos que coincidan con la búsqueda.</p>
           ) : (
-            productos.map((producto) => (
-              <div className="product-card" key={producto.id}>
-                <div className="product-image-placeholder">📦</div>
-                <div className="product-info">
-                  <h4>{producto.nombre}</h4>
-                  <span className="sku">Código: {producto.codigo}</span>
-                  <span className="category-tag">Categoría ID: {producto.id_categoria}</span>
-                  <div className="product-price-row">
-                    <span className="price">$ {producto.precio_venta}</span>
-                    <span className={`stock ${producto.stock_actual <= producto.stock_minimo ? 'low-stock' : ''}`}>
-                      {producto.stock_actual} {producto.unidad_medida || 'und.'}
-                    </span>
+            productosFiltrados.map((producto) => {
+              // Determinamos el estado del stock para los colores de alerta visual
+              let claseStockCard = '';
+              if (producto.stock_actual === 0) {
+                claseStockCard = 'card-agotado'; // Estilo rojo
+              } else if (producto.stock_actual <= producto.stock_minimo) {
+                claseStockCard = 'card-stock-bajo'; // Estilo amarillo
+              }
+
+              return (
+                <div className={`product-card ${claseStockCard}`} key={producto.id}>
+                  <div className="product-image-placeholder">📦</div>
+                  <div className="product-info">
+                    <h4>{producto.nombre}</h4>
+                    <span className="sku">Código: {producto.codigo}</span>
+                    <span className="category-tag">Categoría ID: {producto.id_categoria}</span>
+                    <div className="product-price-row">
+                      <span className="price">$ {producto.precio_venta}</span>
+                      <span className={`stock ${producto.stock_actual <= producto.stock_minimo ? 'low-stock' : ''}`}>
+                        {producto.stock_actual} {producto.unidad_medida || 'und.'} {producto.stock_actual === 0 ? '(Agotado)' : ''}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="product-actions">
+                    <button className="btn-action">✎ Editar</button>
+                    <button className="btn-action danger">🗑 Desactivar</button>
                   </div>
                 </div>
-                <div className="product-actions">
-                  <button className="btn-action">✎ Editar</button>
-                  <button className="btn-action danger">🗑 Desactivar</button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </main>
 
-      {/* 👇 NUEVO: Modal conectado al estado 'formulario' */}
+      {/* Modal conectado al estado 'formulario' */}
       {modalAbierto && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -236,7 +293,6 @@ function Inventario() {
 
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setModalAbierto(false)}>Cancelar</button>
-              {/* Conectamos el botón a nuestra función de guardar */}
               <button className="btn-primary" onClick={guardarProducto}>Guardar producto</button>
             </div>
           </div>
